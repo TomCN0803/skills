@@ -214,7 +214,7 @@ Skills can be installed to any of these agents:
 | Augment | `augment` | `.augment/skills/` | `~/.augment/skills/` |
 | Claude Code | `claude-code` | `.claude/skills/` | `~/.claude/skills/` |
 | OpenClaw | `openclaw` | `skills/` | `~/.openclaw/skills/` |
-| Cline | `cline` | `.agents/skills/` | `~/.cline/skills/` |
+| Cline | `cline` | `.agents/skills/` | `~/.agents/skills/` |
 | CodeBuddy | `codebuddy` | `.codebuddy/skills/` | `~/.codebuddy/skills/` |
 | Codex | `codex` | `.agents/skills/` | `~/.codex/skills/` |
 | Command Code | `command-code` | `.commandcode/skills/` | `~/.commandcode/skills/` |
