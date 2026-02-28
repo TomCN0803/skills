@@ -4,7 +4,6 @@ import { spawn, spawnSync } from 'child_process';
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { basename, join, dirname } from 'path';
 import { homedir } from 'os';
-import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import { runAdd, parseAddOptions, initTelemetry } from './add.ts';
 import { runFind } from './find.ts';
@@ -12,6 +11,7 @@ import { runInstallFromLock } from './install.ts';
 import { runList } from './list.ts';
 import { removeCommand, parseRemoveOptions } from './remove.ts';
 import { runSync, parseSyncOptions } from './sync.ts';
+import { runVerify } from './verify.ts';
 import { track } from './telemetry.ts';
 import { fetchSkillFolderHash, getGitHubToken } from './skill-lock.ts';
 
@@ -86,6 +86,9 @@ function showBanner(): void {
   console.log(
     `  ${DIM}$${RESET} ${TEXT}npx skills update${RESET}               ${DIM}Update all skills${RESET}`
   );
+  console.log(
+    `  ${DIM}$${RESET} ${TEXT}npx skills verify${RESET}               ${DIM}Verify skill integrity${RESET}`
+  );
   console.log();
   console.log(
     `  ${DIM}$${RESET} ${TEXT}npx skills experimental_install${RESET} ${DIM}Restore from skills-lock.json${RESET}`
@@ -118,6 +121,7 @@ ${BOLD}Manage Skills:${RESET}
 ${BOLD}Updates:${RESET}
   check                Check for available skill updates
   update               Update all skills to latest versions
+  verify               Verify integrity of installed skills
 
 ${BOLD}Project:${RESET}
   experimental_install Restore skills from skills-lock.json
@@ -149,6 +153,12 @@ ${BOLD}List Options:${RESET}
   -g, --global           List global skills (default: project)
   -a, --agent <agents>   Filter by specific agents
 
+${BOLD}Verify Options:${RESET}
+  -g, --global           Verify global skills (default: project)
+  -a, --agent <agents>   Filter by specific agents
+  -v, --verbose          Show detailed output with paths and hashes
+  --json                 Output results as JSON for CI/scripting
+
 ${BOLD}Options:${RESET}
   --help, -h        Show this help message
   --version, -v     Show version number
@@ -168,6 +178,9 @@ ${BOLD}Examples:${RESET}
   ${DIM}$${RESET} skills find typescript               ${DIM}# search by keyword${RESET}
   ${DIM}$${RESET} skills check
   ${DIM}$${RESET} skills update
+  ${DIM}$${RESET} skills verify                        ${DIM}# verify project skills${RESET}
+  ${DIM}$${RESET} skills verify -g                     ${DIM}# verify global skills${RESET}
+  ${DIM}$${RESET} skills verify -v                     ${DIM}# verbose output${RESET}
   ${DIM}$${RESET} skills experimental_install            ${DIM}# restore from skills-lock.json${RESET}
   ${DIM}$${RESET} skills init my-skill
   ${DIM}$${RESET} skills experimental_sync              ${DIM}# sync from node_modules${RESET}
@@ -640,6 +653,9 @@ async function main(): Promise<void> {
     case 'update':
     case 'upgrade':
       runUpdate();
+      break;
+    case 'verify':
+      await runVerify(restArgs);
       break;
     case '--help':
     case '-h':
