@@ -1,6 +1,6 @@
-import { access, lstat, readlink } from 'fs/promises';
+import { lstat, readlink } from 'fs/promises';
 import { homedir } from 'os';
-import { join, relative } from 'path';
+import { dirname, join, resolve } from 'path';
 import pc from 'picocolors';
 
 import { agents, detectInstalledAgents } from './agents.ts';
@@ -10,8 +10,8 @@ import {
   listInstalledSkills,
   type InstalledSkill,
 } from './installer.ts';
-import { computeSkillFolderHash, readLocalLock, type LocalSkillLockFile } from './local-lock.ts';
-import { readSkillLock, type SkillLockFile } from './skill-lock.ts';
+import { computeSkillFolderHash, readLocalLock } from './local-lock.ts';
+import { readSkillLock } from './skill-lock.ts';
 import { parseSkillMd } from './skills.ts';
 import { track } from './telemetry.ts';
 import type { AgentType } from './types.ts';
@@ -99,11 +99,9 @@ async function checkSymlinkIntegrity(
       const stats = await lstat(skillLink);
 
       if (stats.isSymbolicLink()) {
-        // Check if symlink target exists
-        try {
-          await access(skillLink);
-        } catch {
-          // Symlink exists but target doesn't
+        const target = await readlink(skillLink);
+        const resolvedTarget = resolve(dirname(skillLink), target);
+        if (resolvedTarget !== canonicalPath) {
           brokenSymlinks.push({ agent: agentType, link: skillLink });
         }
       }
@@ -124,6 +122,7 @@ export async function verifySkills(options: {
   const cwd = options.cwd || process.cwd();
   const isGlobal = options.global ?? false;
   const scope = isGlobal ? 'global' : 'project';
+  const agentFilter = options.agentFilter;
 
   const results: VerifyResult[] = [];
   const counts = {
@@ -143,7 +142,7 @@ export async function verifySkills(options: {
   const installedSkills = await listInstalledSkills({
     global: isGlobal,
     cwd,
-    agentFilter: options.agentFilter,
+    agentFilter: agentFilter,
   });
 
   // Build a map of installed skills by name
@@ -154,8 +153,8 @@ export async function verifySkills(options: {
 
   // Detect installed agents for symlink checking
   const detectedAgents = await detectInstalledAgents();
-  const agentsToCheck = options.agentFilter
-    ? detectedAgents.filter((a) => options.agentFilter!.includes(a))
+  const agentsToCheck = agentFilter
+    ? detectedAgents.filter((a) => agentFilter.includes(a))
     : detectedAgents;
 
   // Check skills that are in the lock file
@@ -301,10 +300,8 @@ function formatStandardOutput(summary: VerifySummary, cwd: string): void {
   // Show issues
   for (const result of summary.results) {
     if (result.status === 'ok' && result.brokenSymlinks.length === 0) {
-      continue; // Skip OK skills in standard output
+      continue;
     }
-
-    const shortPath = result.path ? shortenPath(result.path, cwd) : '';
 
     switch (result.status) {
       case 'modified':
